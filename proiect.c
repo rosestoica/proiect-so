@@ -3,6 +3,9 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <fcntl.h>
 void error(char * msg)
 {
   perror(msg);
@@ -10,9 +13,18 @@ void error(char * msg)
 }
 
 
+int creare_fisier(const char * file)
+{
+	int fd = open(file,O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
+	if(fd==-1)
+		error("eroare fisier out");
+	else
+		return fd;
+	return -1;
+}
 
 
-void parse(const char * dir_path)
+void parse(const char * dir_path, int fd)
 {
   DIR * d=NULL;
   if((d=opendir(dir_path))== NULL)
@@ -41,11 +53,16 @@ void parse(const char * dir_path)
 	{
 	  n=strlen(cale_relativa);
 	  if(cale_relativa[n-1]!='.')
-	    parse(cale_relativa);
+	    parse(cale_relativa,fd);
 	}
       else
 	{ //prelucrare fisier
-	  printf("%s %ld %ld  \n", cale_relativa, status.st_ino,status.st_size);
+	  char description[512];
+	sprintf(description,"%s %ld %ld %ld \n", cale_relativa, status.st_ino,status.st_size,status.st_mtim.tv_sec);
+
+	  int k=strlen(description);
+	  if(write(fd,description,k+1) == -1)
+	  	error("eroare scriere in fisier");
 
 	}
 
@@ -68,7 +85,9 @@ int main(int argc , char ** argv)
 {
   if(argc<2)
     error("argumente insuficiente");
-  parse(argv[1]);
+  int fd=creare_fisier("fileout.txt");
+  
+  parse(argv[1],fd);
 
   return 0;
 }
