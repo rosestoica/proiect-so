@@ -33,7 +33,7 @@ void error(char * msg)
 //trebuie sa compar 2 vectori de structuri de tip metadata -> diferentele le pun la stdout
 
 
-/*int creare_fisier(const char * file)
+int creare_fisier(const char * file)
 {
 	int fd = open(file,O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
 	if(fd==-1)
@@ -41,7 +41,7 @@ void error(char * msg)
 	else
 		return fd;
 	return -1;
-}*/
+}
 
 
 void parse(const char * dir_path, int fd)  // parcurgere director
@@ -226,17 +226,13 @@ int j=0;
 //123 67 89 35 45 78
 
 
-
-
-
-int main(int argc , char ** argv)
+void analiza_director(const char * director, int order, const char * dir_output)
 {
-  if(argc<2)
-    error("argumente insuficiente");
-  //int fd=creare_fisier("fileout.txt");
-  int fd = open("fileout.txt",O_RDONLY);
-	if(fd==-1)
-		error("eroare fisier out");
+char file_out[256];
+  sprintf(file_out,"%s/fileout%d.txt",dir_output,order);
+  int fd = open(file_out,O_RDONLY);
+	if(fd!=-1)
+	{	
 	
   metadata *old =NULL;	
   int nv=salvare_info_snaptxt(fd,&old);
@@ -246,7 +242,7 @@ if(close(fd)!=0)
 	
 	
 //golire fisier snapshot anterior
-fd = open("fileout.txt",O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
+fd = open(file_out,O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
 	if(fd==-1)
 		error("eroare fisier out");
   if(ftruncate(fd,0) ==-1)
@@ -254,7 +250,7 @@ fd = open("fileout.txt",O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
   	
   	
   	//actualizare snapshot 
-  parse(argv[1],fd);
+  parse(director,fd);
   lseek(fd,0,SEEK_SET);
   metadata * nou=NULL;
   int nn = salvare_info_snaptxt(fd,&nou);
@@ -268,6 +264,29 @@ fd = open("fileout.txt",O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
   if(close(fd)!=0)
 	error("inchidere");
   compara(old,nv,nou,nn);
+}
+else // nu exista snapshot anterior
+{
+	fd=creare_fisier(file_out);
+	  parse(director,fd);
+}
+
+}
+
+
+int main(int argc , char ** argv)
+{
+  if(argc<2)
+    error("argumente insuficiente");
+  //int fd=creare_fisier("fileout.txt");
+  
+  if(strcmp(argv[1],"-o")==0) // primul director in linie de comanda e de output
+  	for(int i=3;i<argc;i++)
+ 		analiza_director(argv[i],i-2,argv[2]);
+ else
+ 	for(int i=2;i<argc;i++)
+ 		analiza_director(argv[i],i-1,argv[1]);
+  
   //afisare_tablou(old,nv);
   //printf("\n \n \n");
   //afisare_tablou(nou,nn);
