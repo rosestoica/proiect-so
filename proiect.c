@@ -29,9 +29,9 @@ void error(char * msg)
   perror(msg);
   exit(-1);
 }
-// creeare vectori
+
 //trebuie sa compar 2 vectori de structuri de tip metadata -> diferentele le pun la stdout
-//+ actualizez snapshot
+
 
 /*int creare_fisier(const char * file)
 {
@@ -80,7 +80,7 @@ void parse(const char * dir_path, int fd)  // parcurgere director
       else
 	{ //prelucrare fisier
 	  char description[512];
-	sprintf(description,"%s;%o;%ld;%ld;%s ", cale_relativa,status.st_mode, status.st_ino,status.st_size, ctime(&status.st_mtime));
+	sprintf(description,"%s;%o;%ld;%ld;%s", cale_relativa,status.st_mode, status.st_ino,status.st_size, ctime(&status.st_mtime));
 	// metadatele unui fisier : cale relativa + nume ;permisiuni - ultimele 3 cifre; inode number ;  dimensiune in bytes ; data celei mai recente modificari
 	
 	metadata aux;
@@ -171,6 +171,63 @@ int salvare_info_snaptxt(int fd, metadata ** v)
 	return curent;
 }
 
+
+
+void compara(metadata * old, int nv, metadata  * new , int nn)
+{
+int j=0;
+	for(int i=0;i<nv && j< nn;i++)
+		if(old[i].ino==new[j].ino) //acelasi file in aceeasi pozitie == acelasi director
+		{
+			if(strcmp(old[i].cale,new[j].cale)!=0)
+				printf("Fisierul si-a schimbat denumirea din %s in %s \n",old[i].cale,new[j].cale);
+			if(strcmp(old[i].mod_recenta,new[j].mod_recenta)!=0)
+				printf("Fisierul %s s-a modificat \n",new[j].cale);
+			j++;
+				// creste si i si j
+		}
+		else
+		{
+			int k;
+			for( k=j;k<nn;k++) //caut sa vad daca mai exista
+				if(old[i].ino==new[k].ino){ // il regasesc
+					if(strcmp(old[i].cale,new[k].cale)!=0){ // nu cresc j !!! sterg din new
+						printf("Fisierul %s fost mutat \n", old[i].cale); // are cale diferita deci s-a mutat
+						for(int q=k+1;q<nn;q++){
+							new[q-1]=new[q];
+							nn--;
+								}
+							
+						}
+					else
+					{ // aceeasi cale , deci ce e intre s a adaugat
+					printf("nepotivire %s", old[i].cale);
+						for(int q=j;q<k;q++) 
+							printf("Fisierul %s a fost adaugat \n",new[q].cale);
+						// cresc k pana dupa q gasit
+						j=k;
+						i--;
+					}
+					break;
+				}
+			if(k==nn) // nu l-am mai regasit in new pe old[i] -> a fost sters
+				{ // nu cresc j
+				
+					printf("Fisierul %s a fost sters  %s\n",old[i].cale,new[i].cale);
+				}
+		}
+
+}
+//123 34 45 78
+//123 78
+
+//123 34 45 78
+//123 67 89 35 45 78
+
+
+
+
+
 int main(int argc , char ** argv)
 {
   if(argc<2)
@@ -209,9 +266,10 @@ fd = open("fileout.txt",O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
   }*/
   if(close(fd)!=0)
 	error("inchidere");
-  afisare_tablou(old,nv);
-  printf("\n \n \n");
-  afisare_tablou(nou,nn);
+  compara(old,nv,nou,nn);
+  //afisare_tablou(old,nv);
+  //printf("\n \n \n");
+  //afisare_tablou(nou,nn);
 
   return 0;
 }
