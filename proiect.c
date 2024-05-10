@@ -176,7 +176,7 @@ int salvare_info_snaptxt(int fd, metadata ** v)
 void compara(metadata * old, int nv, metadata  * new , int nn)
 {
 int j=0;
-	for(int i=0;i<nv && j< nn;i++)
+	for(int i=0;i<nv && j< nn;i++){
 		if(old[i].ino==new[j].ino) //acelasi file in aceeasi pozitie == acelasi director
 		{
 			if(strcmp(old[i].cale,new[j].cale)!=0)
@@ -201,7 +201,7 @@ int j=0;
 						}
 					else
 					{ // aceeasi cale , deci ce e intre s a adaugat
-					printf("nepotivire %s", old[i].cale);
+					//printf("nepotivire %s", old[i].cale);
 						for(int q=j;q<k;q++) 
 							printf("Fisierul %s a fost adaugat \n",new[q].cale);
 						// cresc k pana dupa q gasit
@@ -213,8 +213,9 @@ int j=0;
 			if(k==nn) // nu l-am mai regasit in new pe old[i] -> a fost sters
 				{ // nu cresc j
 				
-					printf("Fisierul %s a fost sters  %s\n",old[i].cale,new[i].cale);
+					printf("Fisierul %s a fost sters  \n",old[i].cale);
 				}
+		}
 		}
 
 }
