@@ -52,7 +52,7 @@ int verificare_harm(const char * file,const char  * iso_dir)
 		
 		
 	}
-	else
+	if(pid>0)
 	{
 		close(pfd[1]); // inchide capat scriere sa nu blocheze read
 		char buffer[256];
@@ -73,13 +73,16 @@ int verificare_harm(const char * file,const char  * iso_dir)
 			if(p_mutare>0)
 			{
 				int status;
-				waitpid(p_mutare, & status, WCONTINUED); // sa nu ramana procese zombie
+				waitpid(p_mutare, & status, WCONTINUED); // sa nu ramana procese zombie de la mutare
 			}
 			close(pfd[0]);
+			int status;
+			waitpid(pid,&status, WCONTINUED); // sa nu ramana procese zombie de le verif
 			return 1;
 		}
 		close(pfd[0]);
-		// wait
+		int status;
+		waitpid(pid,&status, WCONTINUED); // sa nu ramana procese zombie de le verif
 	}
 	return 0;
 }
@@ -328,7 +331,9 @@ fd = open(file_out,O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
   }*/
   if(close(fd)!=0)
 	error("inchidere");
+
   compara(old,nv,nou,nn);
+  
 }
 else // nu exista snapshot anterior
 {
@@ -339,7 +344,16 @@ else // nu exista snapshot anterior
 	exit(pericol);
 
 }
-
+void verifica_creeaza_dir(const char * dir)
+{
+	struct stat st;
+	if(stat(dir,&st)!=0)// nu exista directorul
+	{
+		if(mkdir(dir,S_IRWXU | S_IRWXG)!=0)// il creeaza
+			error("eroare creeare dir");
+	
+	}
+}
 
 int main(int argc , char ** argv)
 {
@@ -352,7 +366,9 @@ int main(int argc , char ** argv)
   // primul director valid in linie de comanda e de output
   // al doilea director valid in linie de comanda e de izolare
   if(strcmp(argv[1],"-o")==0){ 
+  	verifica_creeaza_dir(argv[2]);
   if(strcmp(argv[3],"-s")==0){
+  	verifica_creeaza_dir(argv[4]);
   	for(int i=5;i<argc;i++){
   		pid=fork();
   		if(pid==0){ // cod proces copil
@@ -369,6 +385,7 @@ int main(int argc , char ** argv)
  		}
  	}
  	else{
+ 		verifica_creeaza_dir(argv[3]);
  		for(int i=4;i<argc;i++){
   		pid=fork();
   		if(pid==0){ // cod proces copil
@@ -387,7 +404,9 @@ int main(int argc , char ** argv)
  	}
  }		
  else{
-   if(strcmp("-s",argv[2])==0){
+    verifica_creeaza_dir(argv[1]);
+    if(strcmp("-s",argv[2])==0){
+    	verifica_creeaza_dir(argv[3]);
  	for(int i=4;i<argc;i++)
  	{
  		pid=fork();
@@ -404,7 +423,8 @@ int main(int argc , char ** argv)
  		}
   	}
   	}
-  	else{
+  else{
+  	verifica_creeaza_dir(argv[2]);
   	for(int i=3;i<argc;i++){
   		pid=fork();
   		if(pid==0){ // cod proces copil
