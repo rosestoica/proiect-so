@@ -272,7 +272,37 @@ int i=0;
 			for( k=j;k<nn;k++) //caut sa vad daca mai exista
 				if(old[i].ino==new[k].ino){ // `1il regasesc
 					if(strcmp(old[i].cale,new[k].cale)!=0){ // nu cresc j !!! sterg din new
+						
+						// cale si nume 
+						char cale_v[256];
+						char nume_v[256];
+						int nr=strlen(old[i].cale);
+						int separator;
+						for(int ic=0;ic<nr;ic++)
+							if(old[i].cale[ic] == '/')
+								separator=ic;
+						strncpy(cale_v,old[i].cale,separator);
+						cale_v[separator]=0;
+						strcpy(nume_v,old[i].cale+separator);
+						
+						
+						char cale_n[256];
+						char nume_n[256];
+						nr=strlen(new[j].cale);
+					
+						for(int ic=0;ic<nr;ic++)
+							if(new[j].cale[ic] == '/')
+								separator=ic;
+						strncpy(cale_n,new[j].cale,separator);
+						cale_v[separator]=0;
+						strcpy(nume_n,new[j].cale+separator);
+					
+						if(strcmp(cale_v,cale_n)!=0)	
 						printf("Fisierul %s fost mutat \n", old[i].cale); // are cale diferita deci s-a mutat
+						if(strcmp(nume_v,nume_n)!=0)
+						printf("Fisierul %s si-a schimbat denumirea   \n",old[i].cale);
+						
+						
 						for(int q=k+1;q<nn;q++){
 							new[q-1]=new[q];
 							nn--;
