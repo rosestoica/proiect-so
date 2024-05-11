@@ -32,23 +32,54 @@ void error(char * msg)
 }
 
 //trebuie sa compar 2 vectori de structuri de tip metadata -> diferentele le pun la stdout
-int verificare_harm(const char * file)
+int verificare_harm(const char * file,const char  * iso_dir)
 {
+	int pfd[2];
+	pipe(pfd);
 	int pid=fork();
 	if(pid==-1)
 		error("eroare procese");
 	if(pid==0)// proces copil
 	{
+		close(pfd[0]); // inchide capat citire -> va scrie
 		//execut script in proces copil
-		printf("potential harm ");
+		//printf("potential harm ");
+		dup2(pfd[1],1); // redirectam iesirea standard la care scrie scriptul spre capat scriere pipe
 		execlp("/home/rose/so/verify_corupt.sh","./verify_corupt.sh",file,NULL);
 		//execlp("ls","ls","-l","dir",NULL);
 		printf("nu face exec");
+		close(pfd[1]);
+		
 		
 	}
 	else
 	{
-		//return ...;
+		close(pfd[1]); // inchide capat scriere sa nu blocheze read
+		char buffer[256];
+		read(pfd[0],buffer,256);
+		//printf("+%s+\n",buffer);
+		int n=strlen(buffer);
+		buffer[n-1]=0; //elimin '\n'
+		if(strcmp("SAFE",buffer)!=0)
+		{
+			int p_mutare=fork();
+			if(p_mutare==0) // proces fiu
+			{
+			 execlp("/home/rose/so/muta.sh","./muta",file,iso_dir,NULL);
+			 error("eroare exec");
+			}
+			if(p_mutare < 0)
+				error("creare proces");
+			if(p_mutare>0)
+			{
+				int status;
+				waitpid(p_mutare, & status, WCONTINUED); // sa nu ramana procese zombie
+			}
+			close(pfd[0]);
+			return 1;
+		}
+		close(pfd[0]);
+		// wait
 	}
 	return 0;
 }
@@ -64,9 +95,10 @@ int creare_fisier(const char * file)
 }
 
 
-void parse(const char * dir_path, int fd)  // parcurgere director
+int parse(const char * dir_path, int fd,const char * iso_dir)  // parcurgere director
 {
   DIR * d=NULL;
+  int pericol=0;
   if((d=opendir(dir_path))== NULL) // obtin DIR * ~ referinta catre director
     error("eroare deschidere director");
 
@@ -95,7 +127,7 @@ void parse(const char * dir_path, int fd)  // parcurgere director
 	{
 	  n=strlen(cale_relativa);
 	  if(cale_relativa[n-1]!='.') // sa nu mai procesam . (dir curent) sau .. (dir parinte)  -> altfel ciclu infinit
-	    parse(cale_relativa,fd); // repetam pt subdirector
+	    pericol+=parse(cale_relativa,fd,iso_dir); // repetam pt subdirector
 	}
       else
 	{ //prelucrare fisier
@@ -104,7 +136,8 @@ void parse(const char * dir_path, int fd)  // parcurgere director
 	// declansare verficare potential harm
 	if( (status.st_mode & 0777) == 0){
 		//printf("potential harm");
-		verificare_harm(cale_relativa);
+		
+		pericol+=verificare_harm(cale_relativa,iso_dir);
 		//if(verificare_harm(cale_relativa))
 			//mutare(cale_relativa,dir_izolare);
 		}
@@ -138,6 +171,7 @@ void parse(const char * dir_path, int fd)  // parcurgere director
   
   if(closedir(d)!=0)
     error("eroare la inchidere");
+  return pericol;
 
 
 }
@@ -256,9 +290,9 @@ int j=0;
 //123 67 89 35 45 78
 
 
-void analiza_director(const char * director, int order, const char * dir_output)
+void analiza_director(const char * director, int order, const char * dir_output,const char * iso_dir)
 {
-	
+	int pericol;
   char file_out[256];
   sprintf(file_out,"%s/fileout%d.txt",dir_output,order);
   int fd = open(file_out,O_RDONLY);
@@ -281,7 +315,7 @@ fd = open(file_out,O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
   	
   	
   	//actualizare snapshot 
-  parse(director,fd);
+  pericol=parse(director,fd,iso_dir);
   lseek(fd,0,SEEK_SET);
   metadata * nou=NULL;
   int nn = salvare_info_snaptxt(fd,&nou);
@@ -299,9 +333,10 @@ fd = open(file_out,O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
 else // nu exista snapshot anterior
 {
 	fd=creare_fisier(file_out);
-	  parse(director,fd);
+	  pericol=parse(director,fd,iso_dir);
 }
-	printf("Fisierul %s contine snapshot-ul directotului %s\n",file_out,director);
+	printf("Fisierul %s contine snapshot-ul directotului %s \n",file_out,director);
+	exit(pericol);
 
 }
 
@@ -321,7 +356,7 @@ int main(int argc , char ** argv)
   	for(int i=5;i<argc;i++){
   		pid=fork();
   		if(pid==0){ // cod proces copil
- 		analiza_director(argv[i],i-4,argv[2]);
+ 		analiza_director(argv[i],i-4,argv[2],argv[4]);
  		break; // sa iese din for == sa nu mai fie create procese din copil
  		}
  		else // cod proces parinte ; pid !=0 retine pid copil
@@ -337,7 +372,7 @@ int main(int argc , char ** argv)
  		for(int i=4;i<argc;i++){
   		pid=fork();
   		if(pid==0){ // cod proces copil
- 		analiza_director(argv[i],i-3,argv[2]);
+ 		analiza_director(argv[i],i-3,argv[2],argv[3]);
  		break; // sa iese din for == sa nu mai fie create procese din copil
  		}
  		else // cod proces parinte ; pid !=0 retine pid copil
@@ -357,7 +392,7 @@ int main(int argc , char ** argv)
  	{
  		pid=fork();
   		if(pid==0){ // cod proces copil
- 		analiza_director(argv[i],i-3,argv[1]);
+ 		analiza_director(argv[i],i-3,argv[1],argv[3]);
  		break; // sa iese din for == sa nu mai fie create procese din copil
  		}
  		else // cod proces parinte ; pid !=0 retine pid copil
@@ -373,7 +408,7 @@ int main(int argc , char ** argv)
   	for(int i=3;i<argc;i++){
   		pid=fork();
   		if(pid==0){ // cod proces copil
- 		analiza_director(argv[i],i-2,argv[1]);
+ 		analiza_director(argv[i],i-2,argv[1],argv[2]);
  		break; // sa iese din for == sa nu mai fie create procese din copil
  		}
  		else // cod proces parinte ; pid !=0 retine pid copil
@@ -392,7 +427,7 @@ int main(int argc , char ** argv)
   {
   	int status;
   	int pid_incheiat=waitpid(v_pid[i],&status,WCONTINUED);
-  	printf("Procesul %d s-a incheiat cu  exit code :%d \n", pid_incheiat, status);
+  	printf("Procesul %d s-a incheiat, au fost detectate %d fisiere periculoase\n", pid_incheiat, WEXITSTATUS(status));
   }
   
   
