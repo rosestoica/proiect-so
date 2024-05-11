@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -17,7 +18,7 @@ typedef struct {
 }metadata;
 void afisare_metadata(metadata x)
 {
- printf("%s;%o;%d%;%d;%s\n",x.cale,x.permisiuni,x.ino,x.size,x.mod_recenta);
+ printf("%s;%o;%d;%d;%s\n",x.cale,x.permisiuni,x.ino,x.size,x.mod_recenta);
 }
 void afisare_tablou(metadata *v , int n)
 {
@@ -221,14 +222,15 @@ int j=0;
 }
 //123 34 45 78
 //123 78
-
+//printf nr proces :txt
 //123 34 45 78
 //123 67 89 35 45 78
 
 
 void analiza_director(const char * director, int order, const char * dir_output)
 {
-char file_out[256];
+	
+  char file_out[256];
   sprintf(file_out,"%s/fileout%d.txt",dir_output,order);
   int fd = open(file_out,O_RDONLY);
 	if(fd!=-1)
@@ -270,6 +272,7 @@ else // nu exista snapshot anterior
 	fd=creare_fisier(file_out);
 	  parse(director,fd);
 }
+	printf("Fisierul %s contine snapshot-ul directotului %s\n",file_out,director);
 
 }
 
@@ -279,13 +282,54 @@ int main(int argc , char ** argv)
   if(argc<2)
     error("argumente insuficiente");
   //int fd=creare_fisier("fileout.txt");
-  
-  if(strcmp(argv[1],"-o")==0) // primul director in linie de comanda e de output
-  	for(int i=3;i<argc;i++)
+  int pid ;
+  int v_pid[15];
+  int nr_procese=0;
+  if(strcmp(argv[1],"-o")==0){ // primul director valid in linie de comanda e de output
+  	for(int i=3;i<argc;i++){
+  		pid=fork();
+  		if(pid==0){ // cod proces copil
  		analiza_director(argv[i],i-2,argv[2]);
- else
+ 		break; // sa iese din for == sa nu mai fie create procese din copil
+ 		}
+ 		else // cod proces parinte ; pid !=0 retine pid copil
+ 		{
+ 			if(pid!=-1)
+ 				v_pid[nr_procese++]=pid;
+ 			else
+ 				error("eroare creeare proces");
+ 		}
+ 		}
+ }		
+ else{
  	for(int i=2;i<argc;i++)
+ 	{
+ 		pid=fork();
+  		if(pid==0){ // cod proces copil
  		analiza_director(argv[i],i-1,argv[1]);
+ 		break; // sa iese din for == sa nu mai fie create procese din copil
+ 		}
+ 		else // cod proces parinte ; pid !=0 retine pid copil
+ 		{
+ 			if(pid!=-1)
+ 				v_pid[nr_procese++]=pid;
+ 			else
+ 				error("eroare creeare proces");
+ 		}
+  	}
+  }	
+  if(pid!=0){	// doar parintele asteapta incheierea copiilor
+  
+    for(int i=0;i<nr_procese;i++)
+  {
+  	int status;
+  	int pid_incheiat=waitpid(v_pid[i],&status,WCONTINUED);
+  	printf("Procesul %d s-a incheiat cu  exit code :%d \n", pid_incheiat, status);
+  }
+  
+  
+  }
+  
   
   //afisare_tablou(old,nv);
   //printf("\n \n \n");
