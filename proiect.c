@@ -134,8 +134,13 @@ int parse(const char * dir_path, int fd,const char * iso_dir)  // parcurgere dir
 	}
       else
 	{ //prelucrare fisier
-	
-	
+	 if(S_ISLNK(status.st_mode))
+	 {
+	 	struct stat status1;
+      		lstat(cale_relativa, &status1);
+      		printf("Este legatura simbolica catre fisierul cu ino %ld",status1.st_ino);
+	 }
+	else{
 	// declansare verficare potential harm
 	if( (status.st_mode & 0777) == 0){
 		//printf("potential harm");
@@ -165,7 +170,7 @@ int parse(const char * dir_path, int fd,const char * iso_dir)  // parcurgere dir
 	}
 
       
-
+	}
 
 
       
@@ -242,8 +247,16 @@ int salvare_info_snaptxt(int fd, metadata ** v)
 
 void compara(metadata * old, int nv, metadata  * new , int nn)
 {
+printf("metadata \n");
+ afisare_tablou(old,nv);
+  printf("\n \n \n");
+ afisare_tablou(new,nn);
+printf("metadata fin \n"); 
 int j=0;
-	for(int i=0;i<nv && j< nn;i++){
+
+if(nv!=0 && nn!=0){
+int i=0;
+	for(i=0;i<nv && j< nn;i++){
 		if(old[i].ino==new[j].ino) //acelasi file in aceeasi pozitie == acelasi director
 		{
 			if(strcmp(old[i].cale,new[j].cale)!=0)
@@ -284,8 +297,39 @@ int j=0;
 				}
 		}
 		}
+		
+		
+		if(j!=nn)
+	{
+		for(int ai=j;ai<nn;ai++)
+	
+			printf("Fisierul %s a fost adaugat \n",new[ai].cale);
+			
+		
+	}
+	if(i!=nv)
+	{
+		for(int ia=i;ia<nv;ia++)
+			printf("Fisierul %s a fost sters \n" , old[ia].cale);
+	}
+		
+		
+	}
+	// ce nu intra prin for
+	
+	if(nv == 0  && nn != 0)
+	{
+		for(int i=0;i<nn;i++)
+			printf("Fisierul %s a fost adaugat \n",new[i].cale);
+	}
+	if(nn == 0 && nv != 0)
+	{
+		for(int i=0;i<nv;i++)
+			printf("Fisierul %s a fost sters \n" , old[i].cale);
+	}
 
 }
+
 //123 34 45 78
 //123 78
 //printf nr proces :txt
@@ -331,7 +375,11 @@ fd = open(file_out,O_RDWR|O_CREAT,S_IRUSR|S_IWUSR|S_IXUSR);
   }*/
   if(close(fd)!=0)
 	error("inchidere");
-
+/*printf("metadata \n");
+ afisare_tablou(old,nv);
+  printf("\n \n \n");
+ afisare_tablou(nou,nn);
+printf("metadata fin \n"); */
   compara(old,nv,nou,nn);
   
 }
@@ -454,9 +502,6 @@ int main(int argc , char ** argv)
   }
   
   
-  //afisare_tablou(old,nv);
-  //printf("\n \n \n");
-  //afisare_tablou(nou,nn);
-
+  
   return 0;
 }
