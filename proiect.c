@@ -247,11 +247,11 @@ int salvare_info_snaptxt(int fd, metadata ** v)
 
 void compara(metadata * old, int nv, metadata  * new , int nn)
 {
-printf("metadata \n");
+/*printf("metadata \n");
  afisare_tablou(old,nv);
   printf("\n \n \n");
  afisare_tablou(new,nn);
-printf("metadata fin \n"); 
+printf("metadata fin \n"); */
 int j=0;
 
 if(nv!=0 && nn!=0){
