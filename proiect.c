@@ -32,7 +32,26 @@ void error(char * msg)
 }
 
 //trebuie sa compar 2 vectori de structuri de tip metadata -> diferentele le pun la stdout
-
+int verificare_harm(const char * file)
+{
+	int pid=fork();
+	if(pid==-1)
+		error("eroare procese");
+	if(pid==0)// proces copil
+	{
+		//execut script in proces copil
+		printf("potential harm ");
+		execlp("/home/rose/so/verify_corupt.sh","./verify_corupt.sh",file,NULL);
+		//execlp("ls","ls","-l","dir",NULL);
+		printf("nu face exec");
+		
+	}
+	else
+	{
+		//return ...;
+	}
+	return 0;
+}
 
 int creare_fisier(const char * file)
 {
@@ -80,6 +99,16 @@ void parse(const char * dir_path, int fd)  // parcurgere director
 	}
       else
 	{ //prelucrare fisier
+	
+	
+	// declansare verficare potential harm
+	if( (status.st_mode & 0777) == 0){
+		//printf("potential harm");
+		verificare_harm(cale_relativa);
+		//if(verificare_harm(cale_relativa))
+			//mutare(cale_relativa,dir_izolare);
+		}
+	else{	
 	  char description[512];
 	sprintf(description,"%s;%o;%ld;%ld;%s", cale_relativa,status.st_mode, status.st_ino,status.st_size, ctime(&status.st_mtime));
 	// metadatele unui fisier : cale relativa + nume ;permisiuni - ultimele 3 cifre; inode number ;  dimensiune in bytes ; data celei mai recente modificari
@@ -97,7 +126,7 @@ void parse(const char * dir_path, int fd)  // parcurgere director
 	  if(write(fd,description,k) == -1)
 	  	error("eroare scriere in fisier");
 	}
-	
+	}
 
       
 
@@ -191,7 +220,7 @@ int j=0;
 		{
 			int k;
 			for( k=j;k<nn;k++) //caut sa vad daca mai exista
-				if(old[i].ino==new[k].ino){ // il regasesc
+				if(old[i].ino==new[k].ino){ // `1il regasesc
 					if(strcmp(old[i].cale,new[k].cale)!=0){ // nu cresc j !!! sterg din new
 						printf("Fisierul %s fost mutat \n", old[i].cale); // are cale diferita deci s-a mutat
 						for(int q=k+1;q<nn;q++){
@@ -279,17 +308,20 @@ else // nu exista snapshot anterior
 
 int main(int argc , char ** argv)
 {
-  if(argc<2)
+  if(argc<3)
     error("argumente insuficiente");
   //int fd=creare_fisier("fileout.txt");
   int pid ;
   int v_pid[15];
   int nr_procese=0;
-  if(strcmp(argv[1],"-o")==0){ // primul director valid in linie de comanda e de output
-  	for(int i=3;i<argc;i++){
+  // primul director valid in linie de comanda e de output
+  // al doilea director valid in linie de comanda e de izolare
+  if(strcmp(argv[1],"-o")==0){ 
+  if(strcmp(argv[3],"-s")==0){
+  	for(int i=5;i<argc;i++){
   		pid=fork();
   		if(pid==0){ // cod proces copil
- 		analiza_director(argv[i],i-2,argv[2]);
+ 		analiza_director(argv[i],i-4,argv[2]);
  		break; // sa iese din for == sa nu mai fie create procese din copil
  		}
  		else // cod proces parinte ; pid !=0 retine pid copil
@@ -300,13 +332,32 @@ int main(int argc , char ** argv)
  				error("eroare creeare proces");
  		}
  		}
+ 	}
+ 	else{
+ 		for(int i=4;i<argc;i++){
+  		pid=fork();
+  		if(pid==0){ // cod proces copil
+ 		analiza_director(argv[i],i-3,argv[2]);
+ 		break; // sa iese din for == sa nu mai fie create procese din copil
+ 		}
+ 		else // cod proces parinte ; pid !=0 retine pid copil
+ 		{
+ 			if(pid!=-1)
+ 				v_pid[nr_procese++]=pid;
+ 			else
+ 				error("eroare creeare proces");
+ 		}
+ 		}
+ 	
+ 	}
  }		
  else{
- 	for(int i=2;i<argc;i++)
+   if(strcmp("-s",argv[2])==0){
+ 	for(int i=4;i<argc;i++)
  	{
  		pid=fork();
   		if(pid==0){ // cod proces copil
- 		analiza_director(argv[i],i-1,argv[1]);
+ 		analiza_director(argv[i],i-3,argv[1]);
  		break; // sa iese din for == sa nu mai fie create procese din copil
  		}
  		else // cod proces parinte ; pid !=0 retine pid copil
@@ -315,6 +366,23 @@ int main(int argc , char ** argv)
  				v_pid[nr_procese++]=pid;
  			else
  				error("eroare creeare proces");
+ 		}
+  	}
+  	}
+  	else{
+  	for(int i=3;i<argc;i++){
+  		pid=fork();
+  		if(pid==0){ // cod proces copil
+ 		analiza_director(argv[i],i-2,argv[1]);
+ 		break; // sa iese din for == sa nu mai fie create procese din copil
+ 		}
+ 		else // cod proces parinte ; pid !=0 retine pid copil
+ 		{
+ 			if(pid!=-1)
+ 				v_pid[nr_procese++]=pid;
+ 			else
+ 				error("eroare creeare proces");
+ 		}
  		}
   	}
   }	
